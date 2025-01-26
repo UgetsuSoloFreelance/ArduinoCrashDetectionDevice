@@ -11,6 +11,8 @@ float velocityX = 0, velocityY = 0, velocityZ = 0;  // Speed in all 3 axes (m/s)
 unsigned long prevTime = 0;
 unsigned long lastImpactTime = 0;
 bool isCrashConfirmed = false;
+static unsigned long crashStartTime = 0;  // Stores when a crash-like event starts
+static bool crashOngoing = false;         // Tracks if a crash is happening
 
 // Thresholds for motor crash classification
 const float SHAKE_THRESHOLD = 2.5;  // High impact threshold (g)
@@ -75,6 +77,7 @@ void processAccelerometer() {
   // Print results
   if (isCrashConfirmed) {
     Serial.println("🚨 MOTOR CRASH CONFIRMED!");
+    isCrashConfirmed = false;
   } else {
     Serial.println("No crash detected.");
   }
@@ -114,8 +117,6 @@ void measureSpeed(float ax, float ay, float az, float dt) {
 
 bool classifyAndConfirmCrash(float shake, float ax, float ay, float az, float prevVx, float prevVy, float prevVz, 
                              float currVx, float currVy, float currVz, unsigned long currentTime) {
-    static unsigned long crashStartTime = 0;  // Stores when a crash-like event starts
-    static bool crashOngoing = false;         // Tracks if a crash is happening
 
     bool impactDetected = shake > SHAKE_THRESHOLD;
     bool speedDroppedX = abs(prevVx - currVx) > SPEED_DROP_THRESHOLD;
@@ -159,6 +160,7 @@ bool classifyAndConfirmCrash(float shake, float ax, float ay, float az, float pr
     // Confirm the crash if the condition lasted longer than CRASH_TIME_LIMIT
     if (crashOngoing && (currentTime - crashStartTime >= CRASH_TIME_LIMIT)) {
         crashOngoing = false;  // Reset after confirming
+        crashStartTime = 0;
         return true;
     }
 
