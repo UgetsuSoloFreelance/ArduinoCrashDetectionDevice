@@ -3,6 +3,10 @@
 
 MPU6050 accel;
 
+// UPDATE DELAYS
+#define ACCEL_UPDATE_INTERVAL 100
+unsigned long lastAccelUpdate = 0;
+
 float velocityX = 0, velocityY = 0, velocityZ = 0;  // Speed in all 3 axes (m/s)
 unsigned long prevTime = 0;
 unsigned long lastImpactTime = 0;
@@ -30,7 +34,17 @@ void setup() {
 }
 
 void loop() {
-  // RETRIEVE ACCELEROMETER DATA
+  unsigned long currentTime = millis();
+
+  // ACCELEROMETER CODE
+  if (currentTime - lastAccelUpdate >= ACCEL_UPDATE_INTERVAL) {
+    lastAccelUpdate = currentTime;  // Update timestamp
+    // RETRIEVE ACCELEROMETER DATA
+    processAccelerometer();
+  }
+}
+
+void processAccelerometer() {
   int16_t ax, ay, az;
   accel.getAcceleration(&ax, &ay, &az);
 
@@ -64,8 +78,6 @@ void loop() {
   } else {
     Serial.println("No crash detected.");
   }
-
-  delay(100);  // Adjust sample rate
 }
 
 // Function to calculate shake intensity (considering all axes)
@@ -100,33 +112,55 @@ void measureSpeed(float ax, float ay, float az, float dt) {
   velocityZ *= 0.98;
 }
 
-// Function to classify the type of motor crash and confirm it
-bool classifyAndConfirmCrash(float shake, float ax, float ay, float az, float prevVx, float prevVy, float prevVz, float currVx, float currVy, float currVz, unsigned long currentTime) {
-  bool impactDetected = shake > SHAKE_THRESHOLD;
-  bool speedDroppedX = abs(prevVx - currVx) > SPEED_DROP_THRESHOLD;
-  bool speedDroppedY = abs(prevVy - currVy) > SPEED_DROP_THRESHOLD;
-  bool speedDroppedZ = abs(prevVz - currVz) > SPEED_DROP_THRESHOLD;
-  bool isFreeFall = (abs(ax) < FREE_FALL_THRESHOLD) && (abs(ay) < FREE_FALL_THRESHOLD) && (abs(az) < FREE_FALL_THRESHOLD);
-  bool isShakingViolently = shake > SHAKE_REPEAT_THRESHOLD;
-  bool isSpinning = abs(ax) > SPIN_THRESHOLD || abs(ay) > SPIN_THRESHOLD;
+bool classifyAndConfirmCrash(float shake, float ax, float ay, float az, float prevVx, float prevVy, float prevVz, 
+                             float currVx, float currVy, float currVz, unsigned long currentTime) {
+    static unsigned long crashStartTime = 0;  // Stores when a crash-like event starts
+    static bool crashOngoing = false;         // Tracks if a crash is happening
 
-  // Confirm crash conditions based on various axes and behaviors
-  if (impactDetected && (speedDroppedX || speedDroppedY || speedDroppedZ)) {
-    lastImpactTime = currentTime;
-    return true; // Crash confirmed by impact and speed drop
-  } else if (!impactDetected && (speedDroppedX || speedDroppedY || speedDroppedZ) && (currentTime - lastImpactTime) < CRASH_TIME_LIMIT) {
-    lastImpactTime = currentTime;
-    return true; // Motor stopping abruptly
-  } else if (isFreeFall && impactDetected) {
-    lastImpactTime = currentTime;
-    return true; // Free fall followed by impact
-  } else if (isShakingViolently && (currentTime - lastImpactTime) < CRASH_TIME_LIMIT) {
-    lastImpactTime = currentTime;
-    return true; // Sustained shaking detected
-  } else if (isSpinning && (speedDroppedX || speedDroppedY || speedDroppedZ)) {
-    lastImpactTime = currentTime;
-    return true; // Spinning out of control detected
-  }
+    bool impactDetected = shake > SHAKE_THRESHOLD;
+    bool speedDroppedX = abs(prevVx - currVx) > SPEED_DROP_THRESHOLD;
+    bool speedDroppedY = abs(prevVy - currVy) > SPEED_DROP_THRESHOLD;
+    bool speedDroppedZ = abs(prevVz - currVz) > SPEED_DROP_THRESHOLD;
+    bool isFreeFall = (abs(ax) < FREE_FALL_THRESHOLD) && (abs(ay) < FREE_FALL_THRESHOLD) && (abs(az) < FREE_FALL_THRESHOLD);
+    bool isShakingViolently = shake > SHAKE_REPEAT_THRESHOLD;
+    bool isSpinning = abs(ax) > SPIN_THRESHOLD || abs(ay) > SPIN_THRESHOLD;
 
-  return false; // No confirmed crash
+    // If a crash-like event is detected, start timing it
+    if (impactDetected && (speedDroppedX || speedDroppedY || speedDroppedZ)) {
+        if (!crashOngoing) {  // Start timing the crash
+            crashStartTime = currentTime;
+            crashOngoing = true;
+        }
+    } 
+    else if (isFreeFall && impactDetected) {
+        if (!crashOngoing) {
+            crashStartTime = currentTime;
+            crashOngoing = true;
+        }
+    }
+    else if (isShakingViolently) {
+        if (!crashOngoing) {
+            crashStartTime = currentTime;
+            crashOngoing = true;
+        }
+    }
+    else if (isSpinning && (speedDroppedX || speedDroppedY || speedDroppedZ)) {
+        if (!crashOngoing) {
+            crashStartTime = currentTime;
+            crashOngoing = true;
+        }
+    }
+    else {
+        // No crash detected, reset timer
+        crashOngoing = false;
+        crashStartTime = 0;
+    }
+
+    // Confirm the crash if the condition lasted longer than CRASH_TIME_LIMIT
+    if (crashOngoing && (currentTime - crashStartTime >= CRASH_TIME_LIMIT)) {
+        crashOngoing = false;  // Reset after confirming
+        return true;
+    }
+
+    return false;
 }
