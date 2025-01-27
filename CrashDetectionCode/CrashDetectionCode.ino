@@ -7,7 +7,7 @@
 MPU6050 accel;
 #define IRSensor 5
 #define gpsSerial Serial
-Adafruit_GPS GPS_SERIAL(&GPSSerial);
+Adafruit_GPS gps(&gpsSerial);
 SoftwareSerial SIM900A(10, 11);
 
 // motor crash variables
@@ -63,9 +63,9 @@ void setup() {
   lastImpactTime = 0;  // Initialize last impact time
   pinMode(IRSensor, INPUT);
 
-  GPS_SERIAL.begin(9600);
-  GPS_SERIAL.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
-  GPS_SERIAL.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);
+  gps.begin(9600);
+  gps.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+  gps.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);
 }
 
 void loop() {
