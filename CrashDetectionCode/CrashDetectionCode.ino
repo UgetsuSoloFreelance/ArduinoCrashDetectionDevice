@@ -1,20 +1,45 @@
 #include <Wire.h>
 #include <MPU6050.h>
+#include <Adafruit_GPS.h>
+#include <SoftwareSerial.h>
 
+// PINS AND COMPONENTS
 MPU6050 accel;
+#define IRSensor 5
+#define gpsSerial Serial
+Adafruit_GPS GPS_SERIAL(&GPSSerial);
+SoftwareSerial SIM900A(10, 11);
 
-// UPDATE DELAYS
-#define ACCEL_UPDATE_INTERVAL 100
-unsigned long lastAccelUpdate = 0;
-
+// motor crash variables
 float velocityX = 0, velocityY = 0, velocityZ = 0;  // Speed in all 3 axes (m/s)
 unsigned long prevTime = 0;
 unsigned long lastImpactTime = 0;
 bool isCrashConfirmed = false;
 static unsigned long crashStartTime = 0;  // Stores when a crash-like event starts
 static bool crashOngoing = false;         // Tracks if a crash is happening
+unsigned long lastAccelUpdate = 0;
 
-// Thresholds for motor crash classification
+// SMS variables
+int totalNumbers = 2;
+int currentIndex = 0;
+unsigned long lastSendTime = 0;
+bool isSending = false;
+
+// GPS VARIABLES
+#define PMTK_SET_NMEA_UPDATE_1HZ  "$PMTK220,1000*1F"
+#define PMTK_SET_NMEA_OUTPUT_RMCGGA "$PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28"
+float latitude = 0.0, longitude = 0.0; // Variables to store coordinates
+float recordedLat = 0.0, recordedLong = 0.0; // Variables to store recorded coordinates
+
+/*
+  THE FOLLOWING VARIABLES CAN BE ADJUSTED ACCORDING TO LIKING.
+*/
+
+// Intervals
+#define ACCEL_UPDATE_INTERVAL 100
+#define MESSAGE_INTERVAL 5000
+
+// Motor Crash
 const float SHAKE_THRESHOLD = 2.5;  // High impact threshold (g)
 const float SPEED_DROP_THRESHOLD = 2.0;  // Speed drop threshold (m/s)
 const float FREE_FALL_THRESHOLD = 0.3;  // Near-zero acceleration threshold (g) during free fall
@@ -22,27 +47,51 @@ const float SHAKE_REPEAT_THRESHOLD = 3.0;  // Violent shaking detection
 const float SPIN_THRESHOLD = 1.5;  // Lateral acceleration for motor spinning out (g)
 const unsigned long CRASH_TIME_LIMIT = 1000;  // Time (ms) to confirm crash (1 second)
 
+// SMS
+String PHONE_NUMBERS[] = {"+639936647951", "+639944344112"};
+
 void setup() {
-  Serial.begin(9600);
   Wire.begin();
+  SIM900A.begin(9600);
   accel.initialize();
+
   if (!accel.testConnection()) {
-    Serial.println("MPU6050 connection failed!");
     while (1);
   }
 
   prevTime = millis();  // Initialize time tracking
   lastImpactTime = 0;  // Initialize last impact time
+  pinMode(IRSensor, INPUT);
+
+  GPS_SERIAL.begin(9600);
+  GPS_SERIAL.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+  GPS_SERIAL.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);
 }
 
 void loop() {
   unsigned long currentTime = millis();
 
+  bool isHelmetWorn = digitalRead(IRSensor) == 1;
+
   // ACCELEROMETER CODE
-  if (currentTime - lastAccelUpdate >= ACCEL_UPDATE_INTERVAL) {
+  if ((currentTime - lastAccelUpdate >= ACCEL_UPDATE_INTERVAL) && isHelmetWorn) {
     lastAccelUpdate = currentTime;  // Update timestamp
     // RETRIEVE ACCELEROMETER DATA
     processAccelerometer();
+  }
+
+
+  // MANAGE SMS
+  if (SIM900A.available()>0) // check for pending messages to be received.
+    SIM900A.read(); // disregard received messages.
+  sendMessages(); // check for pending messages to be sent.
+
+  // MANAGE GPS
+  if (gps.newNMEAreceived()) {
+    if (gps.parse(gps.lastNMEA())) {  // Parse valid GPS data
+      latitude = gps.latitudeDegrees;
+      longitude = gps.longitudeDegrees;
+    }
   }
 }
 
@@ -74,13 +123,19 @@ void processAccelerometer() {
   // USE SPEED AND SHAKE INTENCITY TO DETECT AND CONFIRM CRASH
   isCrashConfirmed = classifyAndConfirmCrash(shake_intensity, accel_x, accel_y, accel_z, prevVelocityX, prevVelocityY, prevVelocityZ, velocityX, velocityY, velocityZ, currentTime);
 
-  // Print results
+  // process crash alert.
   if (isCrashConfirmed) {
-    Serial.println("🚨 MOTOR CRASH CONFIRMED!");
+    processCrashAlert();
     isCrashConfirmed = false;
-  } else {
-    Serial.println("No crash detected.");
   }
+}
+
+void processCrashAlert() {
+  // TRIGGER SEND MESSAGE.
+  recordedLat = latitude;
+  recordedLong = longitude;
+  currentIndex = 0; // Start from the first phone number
+  isSending = true; // Enable message sending process
 }
 
 // Function to calculate shake intensity (considering all axes)
@@ -117,7 +172,6 @@ void measureSpeed(float ax, float ay, float az, float dt) {
 
 bool classifyAndConfirmCrash(float shake, float ax, float ay, float az, float prevVx, float prevVy, float prevVz, 
                              float currVx, float currVy, float currVz, unsigned long currentTime) {
-
     bool impactDetected = shake > SHAKE_THRESHOLD;
     bool speedDroppedX = abs(prevVx - currVx) > SPEED_DROP_THRESHOLD;
     bool speedDroppedY = abs(prevVy - currVy) > SPEED_DROP_THRESHOLD;
@@ -165,4 +219,38 @@ bool classifyAndConfirmCrash(float shake, float ax, float ay, float az, float pr
     }
 
     return false;
+}
+
+void sendMessages() {
+  if (isSending && currentIndex < totalNumbers) {
+        if (millis() - lastSendTime >= MESSAGE_INTERVAL) {
+            sendMessage(PHONE_NUMBERS[currentIndex]); // Send to current number
+            lastSendTime = millis(); // Update timestamp
+            currentIndex++; // Move to next number
+        }
+    } else {
+        isSending = false; // Stop when all numbers are sent to
+    }
+}
+
+void sendMessage(String recipient) {
+  SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
+  delay(100); // Short delay to allow command processing
+
+  SIM900A.print("AT+CMGS=\"");
+  SIM900A.print(recipient);
+  SIM900A.println("\"");
+  delay(100);
+
+  SIM900A.println(createMessage()); // Message content
+  delay(100);
+
+  SIM900A.write(26); // CTRL+Z to send
+  delay(100);
+}
+
+String createMessage() {
+  String mapsLink = "https://www.google.com/maps/place/" + String(recordedLat, 6) + "," + String(recordedLong, 6);
+  String message = "EMERGENCY: Motor crash detected.\nLocation: " + mapsLink;
+  return message;
 }
