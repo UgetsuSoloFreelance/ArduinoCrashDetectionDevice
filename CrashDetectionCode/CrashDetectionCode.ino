@@ -5,7 +5,7 @@
 
 // PINS AND COMPONENTS
 MPU6050 accel;
-#define IRSensor 5
+// #define IRSensor 5
 #define gpsSerial Serial
 Adafruit_GPS gps(&gpsSerial);
 SoftwareSerial SIM900A(10, 11);
@@ -61,7 +61,7 @@ void setup() {
 
   prevTime = millis();  // Initialize time tracking
   lastImpactTime = 0;  // Initialize last impact time
-  pinMode(IRSensor, INPUT);
+  // pinMode(IRSensor, INPUT);
 
   gps.begin(9600);
   gps.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
@@ -71,10 +71,10 @@ void setup() {
 void loop() {
   unsigned long currentTime = millis();
 
-  bool isHelmetWorn = digitalRead(IRSensor) == 1;
+  // bool isHelmetWorn = digitalRead(IRSensor) == 1;
 
   // ACCELEROMETER CODE
-  if ((currentTime - lastAccelUpdate >= ACCEL_UPDATE_INTERVAL) && isHelmetWorn) {
+  if ((currentTime - lastAccelUpdate >= ACCEL_UPDATE_INTERVAL)) { // && isHelmetWorn
     lastAccelUpdate = currentTime;  // Update timestamp
     // RETRIEVE ACCELEROMETER DATA
     processAccelerometer();
