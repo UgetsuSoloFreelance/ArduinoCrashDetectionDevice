@@ -42,12 +42,12 @@ float recordedLat = 0.0, recordedLong = 0.0; // Variables to store recorded coor
 #define MESSAGE_INTERVAL 5000
 
 // Motor Crash
-const float SHAKE_THRESHOLD = 2.5;  // High impact threshold (g)
-const float SPEED_DROP_THRESHOLD = 2.0;  // Speed drop threshold (m/s)
-const float FREE_FALL_THRESHOLD = 0.3;  // Near-zero acceleration threshold (g) during free fall
-const float SHAKE_REPEAT_THRESHOLD = 3.0;  // Violent shaking detection
-const float SPIN_THRESHOLD = 1.5;  // Lateral acceleration for motor spinning out (g)
-const unsigned long CRASH_TIME_LIMIT = 1000;  // Time (ms) to confirm crash (1 second)
+const float SHAKE_THRESHOLD = 1.25;  // High impact threshold (g) (Default: 2.5)
+const float SPEED_DROP_THRESHOLD = 1.0;  // Speed drop threshold (m/s) (Default: 2.0)
+const float FREE_FALL_THRESHOLD = 0.15;  // Near-zero acceleration threshold (g) during free fall (Default: 0.3)
+const float SHAKE_REPEAT_THRESHOLD = 1.5;  // Violent shaking detection (Default: 3.0)
+const float SPIN_THRESHOLD = 0.75;  // Lateral acceleration for motor spinning out (g) (Default: 1.5)
+const unsigned long CRASH_TIME_LIMIT = 500;  // Time (ms) to confirm crash (1 second) (Default: 1000)
 
 // SMS
 String PHONE_NUMBERS[] = {"+639936647951", "+639944344112"};
@@ -86,10 +86,14 @@ void loop() {
   }
 
   // MANAGE SMS
-  if (SIM900A.available() > 0) SIM900A.read();
-  sendMessages();
+  if (SIM900A.available() > 0) SIM900A.read(); // Read incoming messages (DISCARDED).
+  sendMessages(); // Send outgoing messages.
 
   // MANAGE GPS
+  processGPS();
+}
+
+void processGPS() {
   char c = gps.read();
   if (GPSECHO) {
     if (c) Serial.print(c);
@@ -101,45 +105,13 @@ void loop() {
 
   if (millis() - timer > 2000) {
     timer = millis();
-    //Serial.print("\nTime: ");
-    //if (gps.hour < 10) Serial.print('0');
-   // Serial.print(gps.hour, DEC); Serial.print(':');
-   // if (gps.minute < 10) Serial.print('0');
-    //Serial.print(gps.minute, DEC); Serial.print(':');
-    //if (gps.seconds < 10) Serial.print('0');
-    //Serial.print(gps.seconds, DEC); Serial.print('.');
-    //if (gps.milliseconds < 10) Serial.print("00");
-    //else if (gps.milliseconds > 9 && gps.milliseconds < 100) Serial.print("0");
-    //Serial.println(gps.milliseconds);
-
-    //Serial.print("Date: ");
-    //Serial.print(gps.day, DEC); Serial.print('/');
-    //Serial.print(gps.month, DEC); Serial.print("/20");
-    //Serial.println(gps.year, DEC);
-
-    //Serial.print("Fix: "); Serial.print((int)gps.fix);
-    //Serial.print(" quality: "); Serial.println((int)gps.fixquality);
-
     if (gps.fix) {
+
     // Convert latitude from DMM to DD format
     float latitude = (gps.latitude / 100.0) + (gps.latitude - int(gps.latitude / 100.0) * 100) / 60.0;
 
     // Convert longitude from DMM to DD format
     float longitude = (gps.longitude / 100.0) + (gps.longitude - int(gps.longitude / 100.0) * 100) / 60.0;
-
-    //DEBUG 
-
-    //Serial.print("Location: ");
-    //Serial.print(latitude, 6);  // Print latitude in decimal degrees with 6 decimal places
-    //Serial.print(gps.lat);
-    //Serial.print(", ");
-    //Serial.print(longitude, 6);  // Print longitude in decimal degrees with 6 decimal places
-    //Serial.println(gps.lon);
-
-      //Serial.print("Speed (knots): "); Serial.println(gps.speed);
-      //Serial.print("Angle: "); Serial.println(gps.angle);
-      //Serial.print("Altitude: "); Serial.println(gps.altitude);
-      //Serial.print("Satellites: "); Serial.println((int)gps.satellites);
     }
   }
 }
@@ -274,30 +246,34 @@ bool classifyAndConfirmCrash(float shake, float ax, float ay, float az, float pr
 
 void sendMessages() {
   if (isSending && currentIndex < totalNumbers) {
-        if (millis() - lastSendTime >= MESSAGE_INTERVAL) {
-            sendMessage(PHONE_NUMBERS[currentIndex]); // Send to current number
-            lastSendTime = millis(); // Update timestamp
-            currentIndex++; // Move to next number
-        }
-    } else {
-        isSending = false; // Stop when all numbers are sent to
+    if (millis() - lastSendTime >= MESSAGE_INTERVAL) {
+      Serial.print("Sending message to: ");
+      Serial.println(PHONE_NUMBERS[currentIndex]);
+      sendMessage(PHONE_NUMBERS[currentIndex]); // Send to current number
+      lastSendTime = millis(); // Update timestamp
+      currentIndex++; // Move to next number
     }
+  } else {
+    isSending = false; // Stop when all numbers are sent to
+  }
 }
 
 void sendMessage(String recipient) {
   SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
-  delay(100); // Short delay to allow command processing
+  delay(1000); // Short delay to allow command processing
 
   SIM900A.print("AT+CMGS=\"");
   SIM900A.print(recipient);
   SIM900A.println("\"");
-  delay(100);
+  delay(1000);
 
   SIM900A.println(createMessage()); // Message content
-  delay(100);
+  delay(1000);
 
   SIM900A.write(26); // CTRL+Z to send
-  delay(100);
+  delay(1000);
+  
+  Serial.println("Message sent!");
 }
 
 String createMessage() {
