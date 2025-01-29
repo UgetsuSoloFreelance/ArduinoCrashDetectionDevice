@@ -5,10 +5,11 @@
 
 // PINS AND COMPONENTS
 MPU6050 accel;
-// #define IRSensor 5
+#define IRSensor 5
 #define gpsSerial Serial
 Adafruit_GPS gps(&gpsSerial);
 SoftwareSerial SIM900A(10, 11);
+#define GPSECHO false
 
 // motor crash variables
 float velocityX = 0, velocityY = 0, velocityZ = 0;  // Speed in all 3 axes (m/s)
@@ -26,6 +27,7 @@ unsigned long lastSendTime = 0;
 bool isSending = false;
 
 // GPS VARIABLES
+uint32_t timer = millis();
 #define PMTK_SET_NMEA_UPDATE_1HZ  "$PMTK220,1000*1F"
 #define PMTK_SET_NMEA_OUTPUT_RMCGGA "$PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28"
 float latitude = 0.0, longitude = 0.0; // Variables to store coordinates
@@ -52,6 +54,7 @@ String PHONE_NUMBERS[] = {"+639936647951", "+639944344112"};
 
 void setup() {
   Wire.begin();
+  Serial.begin(115200);
   SIM900A.begin(9600);
   accel.initialize();
 
@@ -59,38 +62,84 @@ void setup() {
     while (1);
   }
 
-  prevTime = millis();  // Initialize time tracking
-  lastImpactTime = 0;  // Initialize last impact time
-  // pinMode(IRSensor, INPUT);
+  prevTime = millis();
+  lastImpactTime = 0;
 
   gps.begin(9600);
   gps.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   gps.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);
+  gps.sendCommand(PGCMD_ANTENNA);
+
+  delay(1000);
+  gpsSerial.println(PMTK_Q_RELEASE);
+
+  Serial.println("GPS System Initialized!");
 }
 
 void loop() {
   unsigned long currentTime = millis();
 
-  // bool isHelmetWorn = digitalRead(IRSensor) == 1;
-
   // ACCELEROMETER CODE
-  if ((currentTime - lastAccelUpdate >= ACCEL_UPDATE_INTERVAL)) { // && isHelmetWorn
-    lastAccelUpdate = currentTime;  // Update timestamp
-    // RETRIEVE ACCELEROMETER DATA
+  if ((currentTime - lastAccelUpdate >= 100)) {
+    lastAccelUpdate = currentTime;
     processAccelerometer();
   }
 
-
   // MANAGE SMS
-  if (SIM900A.available()>0) // check for pending messages to be received.
-    SIM900A.read(); // disregard received messages.
-  sendMessages(); // check for pending messages to be sent.
+  if (SIM900A.available() > 0) SIM900A.read();
+  sendMessages();
 
   // MANAGE GPS
+  char c = gps.read();
+  if (GPSECHO) {
+    if (c) Serial.print(c);
+  }
+
   if (gps.newNMEAreceived()) {
-    if (gps.parse(gps.lastNMEA())) {  // Parse valid GPS data
-      latitude = gps.latitudeDegrees;
-      longitude = gps.longitudeDegrees;
+    if (!gps.parse(gps.lastNMEA())) return;
+  }
+
+  if (millis() - timer > 2000) {
+    timer = millis();
+    //Serial.print("\nTime: ");
+    //if (gps.hour < 10) Serial.print('0');
+   // Serial.print(gps.hour, DEC); Serial.print(':');
+   // if (gps.minute < 10) Serial.print('0');
+    //Serial.print(gps.minute, DEC); Serial.print(':');
+    //if (gps.seconds < 10) Serial.print('0');
+    //Serial.print(gps.seconds, DEC); Serial.print('.');
+    //if (gps.milliseconds < 10) Serial.print("00");
+    //else if (gps.milliseconds > 9 && gps.milliseconds < 100) Serial.print("0");
+    //Serial.println(gps.milliseconds);
+
+    //Serial.print("Date: ");
+    //Serial.print(gps.day, DEC); Serial.print('/');
+    //Serial.print(gps.month, DEC); Serial.print("/20");
+    //Serial.println(gps.year, DEC);
+
+    //Serial.print("Fix: "); Serial.print((int)gps.fix);
+    //Serial.print(" quality: "); Serial.println((int)gps.fixquality);
+
+    if (gps.fix) {
+    // Convert latitude from DMM to DD format
+    float latitude = (gps.latitude / 100.0) + (gps.latitude - int(gps.latitude / 100.0) * 100) / 60.0;
+
+    // Convert longitude from DMM to DD format
+    float longitude = (gps.longitude / 100.0) + (gps.longitude - int(gps.longitude / 100.0) * 100) / 60.0;
+
+    //DEBUG 
+
+    //Serial.print("Location: ");
+    //Serial.print(latitude, 6);  // Print latitude in decimal degrees with 6 decimal places
+    //Serial.print(gps.lat);
+    //Serial.print(", ");
+    //Serial.print(longitude, 6);  // Print longitude in decimal degrees with 6 decimal places
+    //Serial.println(gps.lon);
+
+      //Serial.print("Speed (knots): "); Serial.println(gps.speed);
+      //Serial.print("Angle: "); Serial.println(gps.angle);
+      //Serial.print("Altitude: "); Serial.println(gps.altitude);
+      //Serial.print("Satellites: "); Serial.println((int)gps.satellites);
     }
   }
 }
@@ -125,9 +174,11 @@ void processAccelerometer() {
 
   // process crash alert.
   if (isCrashConfirmed) {
+    Serial.println("Crash Detected!");
     processCrashAlert();
     isCrashConfirmed = false;
   }
+  Serial.println("No crash detected");
 }
 
 void processCrashAlert() {
