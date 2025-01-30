@@ -23,6 +23,7 @@ unsigned long lastAccelUpdate = 0;
 // SMS variables
 int totalNumbers = 2;
 int currentIndex = 0;
+int messageIndex = 1;
 unsigned long lastSendTime = 0;
 bool isSending = false;
 
@@ -253,18 +254,43 @@ bool classifyAndConfirmCrash(float shake, float ax, float ay, float az, float pr
 void sendMessages() {
   if (isSending && currentIndex < totalNumbers) {
     if (millis() - lastSendTime >= MESSAGE_INTERVAL) {
-      Serial.print("Sending message to: ");
+      Serial.print("Sending message ");
+      Serial.print(messageIndex);
+      Serial.print(" to: ");
       Serial.println(PHONE_NUMBERS[currentIndex]);
-      sendMessage(PHONE_NUMBERS[currentIndex]); // Send to current number
+
+      // Toggle messageIndex between 1 and 2
+      if (messageIndex == 1) {
+        sendMessage1(PHONE_NUMBERS[currentIndex]);
+        messageIndex = 2; // Switch to message 2 next
+      } else {
+        sendMessage2(PHONE_NUMBERS[currentIndex]);
+        messageIndex = 1; // Reset to message 1 for the next number
+        currentIndex++;   // Move to the next number
+      }
       lastSendTime = millis(); // Update timestamp
-      currentIndex++; // Move to next number
     }
   } else {
     isSending = false; // Stop when all numbers are sent to
   }
 }
 
-void sendMessage(String recipient) {
+void sendMessage1(String recipient) {
+  if (recordedLat == 0.0 || recordedLong == 0.0) {
+    sendMessageBase(recipient, "Emergency: Motor crash detected. But cannot retrieve location.");
+  } else {
+    sendMessageBase(recipient, "EMERGENCY: Motor crash detected.\nPlease search the following coordinates to Google Maps.");
+  }
+}
+
+void sendMessage2(String recipient) {
+  if (recordedLat != 0.0 && recordedLong != 0.0) {
+    String coordinates = String(recordedLat, 6) + "," + String(recordedLong, 6);
+    sendMessageBase(recipient, coordinates);
+  }
+}
+
+void sendMessageBase(String recipient, String message) {
   SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
   delay(2000); // Increased delay to ensure module is ready
   while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
@@ -275,7 +301,7 @@ void sendMessage(String recipient) {
   delay(2000); // Increased delay to ensure command is processed
   while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
-  SIM900A.println(createMessage()); // Send message content
+  SIM900A.println(message); // Send message content
   delay(2000); // Increased delay for message processing
   while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
@@ -284,11 +310,4 @@ void sendMessage(String recipient) {
   while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
   Serial.println("Message sent!");
-}
-
-String createMessage() {
-  // Direct message with fixed location (mock data)
-  String mapsLink = "https://www.google.com/maps/place/14.097091,122.958282";
-  String message = "EMERGENCY: Motor crash detected.\nLocation: " + mapsLink;
-  return message;
 }
