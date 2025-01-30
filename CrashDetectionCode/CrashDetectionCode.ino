@@ -20,6 +20,7 @@ static unsigned long crashStartTime = 0;  // Stores when a crash-like event star
 static bool crashOngoing = false;         // Tracks if a crash is happening
 unsigned long lastAccelUpdate = 0;
 
+
 // SMS variables
 int totalNumbers = 2;
 int currentIndex = 0;
@@ -277,7 +278,10 @@ void sendMessage(String recipient) {
 }
 
 String createMessage() {
+  if (recordedLat == 0.0 && recordedLong == 0.0) {
+    return "EMERGENCY: Motor crash detected.\nLocation unavailable.";
+  }
+
   String mapsLink = "https://www.google.com/maps/place/" + String(recordedLat, 6) + "," + String(recordedLong, 6);
-  String message = "EMERGENCY: Motor crash detected.\nLocation: " + mapsLink;
-  return message;
+  return "EMERGENCY: Motor crash detected.\nLocation: " + mapsLink;
 }
