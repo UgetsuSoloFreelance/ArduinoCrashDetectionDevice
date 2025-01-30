@@ -279,7 +279,7 @@ void sendMessage1(String recipient) {
   if (recordedLat == 0.0 || recordedLong == 0.0) {
     sendMessageBase(recipient, "Emergency: Motor crash detected. But cannot retrieve location.");
   } else {
-    sendMessageBase(recipient, "EMERGENCY: Motor crash detected.\nPlease search the following coordinates to Google Maps.");
+    sendMessageBase(recipient, "EMERGENCY: Motor crash detected. Search the following coordinates to GMaps.");
   }
 }
 
@@ -302,6 +302,7 @@ void sendMessageBase(String recipient, String message) {
   while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
   SIM900A.println(message); // Send message content
+  SIM900A.println(); // Extra newline for safety
   delay(2000); // Increased delay for message processing
   while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
