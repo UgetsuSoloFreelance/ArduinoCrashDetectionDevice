@@ -263,8 +263,11 @@ void sendMessages() {
       if (messageIndex == 1) {
         sendMessage1(PHONE_NUMBERS[currentIndex]);
         messageIndex = 2; // Switch to message 2 next
-      } else {
+      } else if (messageIndex == 2) {
         sendMessage2(PHONE_NUMBERS[currentIndex]);
+        messageIndex = 3; // Reset to message 1 for the next number
+      } else {
+        sendMessage3(PHONE_NUMBERS[currentIndex]);
         messageIndex = 1; // Reset to message 1 for the next number
         currentIndex++;   // Move to the next number
       }
@@ -279,7 +282,7 @@ void sendMessage1(String recipient) {
   if (recordedLat == 0.0 || recordedLong == 0.0) {
     sendMessageBase(recipient, "Emergency: Motor crash detected. But cannot retrieve location.");
   } else {
-    sendMessageBase(recipient, "EMERGENCY: Motor crash detected. Search the following coordinates to GMaps.");
+    sendMessageBase(recipient, "EMERGENCY: Motor crash detected. Coordinates:");
   }
 }
 
@@ -287,6 +290,12 @@ void sendMessage2(String recipient) {
   if (recordedLat != 0.0 && recordedLong != 0.0) {
     String coordinates = String(recordedLat, 6) + "," + String(recordedLong, 6);
     sendMessageBase(recipient, coordinates);
+  }
+}
+
+void sendMessage3(String recipient) {
+  if (recordedLat != 0.0 && recordedLong != 0.0) {
+    sendMessageBase(recipient, "Note: Search this coordinates to your GMaps.");
   }
 }
 
