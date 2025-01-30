@@ -20,7 +20,6 @@ static unsigned long crashStartTime = 0;  // Stores when a crash-like event star
 static bool crashOngoing = false;         // Tracks if a crash is happening
 unsigned long lastAccelUpdate = 0;
 
-
 // SMS variables
 int totalNumbers = 2;
 int currentIndex = 0;
@@ -108,11 +107,17 @@ void processGPS() {
     timer = millis();
     if (gps.fix) {
 
-    // Convert latitude from DMM to DD format
-    float latitude = (gps.latitude / 100.0) + (gps.latitude - int(gps.latitude / 100.0) * 100) / 60.0;
+     // Convert latitude from DMM to DD format
+    float latitude = (int)(gps.latitude / 100) + (gps.latitude - ((int)(gps.latitude / 100) * 100)) / 60.0;
+    if (gps.lat == 'S') latitude = -latitude; // Convert to negative for Southern Hemisphere
 
     // Convert longitude from DMM to DD format
-    float longitude = (gps.longitude / 100.0) + (gps.longitude - int(gps.longitude / 100.0) * 100) / 60.0;
+    float longitude = (int)(gps.longitude / 100) + (gps.longitude - ((int)(gps.longitude / 100) * 100)) / 60.0;
+    if (gps.lon == 'W') longitude = -longitude; // Convert to negative for Western Hemisphere
+
+    //Debug
+    //Serial.print(latitude,6);Serial.print(",");Serial.println(longitude, 6);
+    
     }
   }
 }
@@ -151,7 +156,7 @@ void processAccelerometer() {
     processCrashAlert();
     isCrashConfirmed = false;
   }
-  Serial.println("No crash detected");
+  //Serial.println("No crash detected");
 }
 
 void processCrashAlert() {
@@ -261,27 +266,29 @@ void sendMessages() {
 
 void sendMessage(String recipient) {
   SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
-  delay(1000); // Short delay to allow command processing
+  delay(2000); // Increased delay to ensure module is ready
+  while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
   SIM900A.print("AT+CMGS=\"");
   SIM900A.print(recipient);
   SIM900A.println("\"");
-  delay(1000);
+  delay(2000); // Increased delay to ensure command is processed
+  while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
-  SIM900A.println(createMessage()); // Message content
-  delay(1000);
+  SIM900A.println(createMessage()); // Send message content
+  delay(2000); // Increased delay for message processing
+  while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
-  SIM900A.write(26); // CTRL+Z to send
-  delay(1000);
-  
+  SIM900A.write(26); // CTRL+Z to send message
+  delay(5000); // Longer delay to ensure message is sent
+  while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
   Serial.println("Message sent!");
 }
 
 String createMessage() {
-  if (recordedLat == 0.0 && recordedLong == 0.0) {
-    return "EMERGENCY: Motor crash detected.\nLocation unavailable.";
-  }
-
-  String mapsLink = "https://www.google.com/maps/place/" + String(recordedLat, 6) + "," + String(recordedLong, 6);
-  return "EMERGENCY: Motor crash detected.\nLocation: " + mapsLink;
+  // Direct message with fixed location (mock data)
+  String mapsLink = "https://www.google.com/maps/place/14.097091,122.958282";
+  String message = "EMERGENCY: Motor crash detected.\nLocation: " + mapsLink;
+  return message;
 }
