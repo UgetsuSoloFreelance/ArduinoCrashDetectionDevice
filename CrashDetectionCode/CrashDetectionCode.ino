@@ -10,6 +10,7 @@ MPU6050 accel;
 Adafruit_GPS gps(&gpsSerial);
 SoftwareSerial SIM900A(10, 11);
 #define GPSECHO false
+#define fsrPin 0
 
 // motor crash variables
 float velocityX = 0, velocityY = 0, velocityZ = 0;  // Speed in all 3 axes (m/s)
@@ -53,6 +54,9 @@ const unsigned long CRASH_TIME_LIMIT = 500;  // Time (ms) to confirm crash (1 se
 // SMS
 String PHONE_NUMBERS[] = {"+639936647951", "+639944344112"};
 
+// FSR
+const int FORCE_THRESHOLD = 10; // minimum force threshold is 10.
+
 void setup() {
   Wire.begin();
   Serial.begin(115200);
@@ -80,8 +84,10 @@ void setup() {
 void loop() {
   unsigned long currentTime = millis();
 
+  unsigned int fsrReading = analogRead(fsrPin);
+
   // ACCELEROMETER CODE
-  if ((currentTime - lastAccelUpdate >= 100)) {
+  if ((currentTime - lastAccelUpdate >= 100) && (fsrReading > FORCE_THRESHOLD)) {
     lastAccelUpdate = currentTime;
     processAccelerometer();
   }
