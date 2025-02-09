@@ -35,6 +35,9 @@ uint32_t timer = millis();
 float latitude = 0.0, longitude = 0.0; // Variables to store coordinates
 float recordedLat = 0.0, recordedLong = 0.0; // Variables to store recorded coordinates
 
+// FSR VARIABLES
+unsigned int fsrValue = 0;
+
 /*
   THE FOLLOWING VARIABLES CAN BE ADJUSTED ACCORDING TO LIKING.
 */
@@ -86,8 +89,12 @@ void loop() {
 
   unsigned int fsrReading = analogRead(fsrPin);
 
+  if (fsrReading > FORCE_THRESHOLD) {
+    fsrValue = fsrReading;
+  }
+
   // ACCELEROMETER CODE
-  if ((currentTime - lastAccelUpdate >= 100) && (fsrReading > FORCE_THRESHOLD)) {
+  if ((currentTime - lastAccelUpdate >= 100) && (fsrValue > FORCE_THRESHOLD)) {
     lastAccelUpdate = currentTime;
     processAccelerometer();
   }
@@ -282,12 +289,13 @@ void sendMessages() {
     }
   } else {
     isSending = false; // Stop when all numbers are sent to
+    fsrValue = 0; // reset fsr value
   }
 }
 
 void sendMessage1(String recipient) {
   if (recordedLat == 0.0 || recordedLong == 0.0) {
-    sendMessageBase(recipient, "Emergency: Motor crash detected. But cannot retrieve location.");
+    sendMessageBase(recipient, "EMERGENCY: Motor crash detected. But cannot retrieve location.");
   } else {
     sendMessageBase(recipient, "EMERGENCY: Motor crash detected. Coordinates:");
   }
@@ -295,14 +303,19 @@ void sendMessage1(String recipient) {
 
 void sendMessage2(String recipient) {
   if (recordedLat != 0.0 && recordedLong != 0.0) {
+    Serial.print("sendMessage2;RecordedLat: ");Serial.println(recordedLat);
+    Serial.print("sendMessage2;RecordedLng: ");Serial.println(recordedLong);
+    Serial.println("sendMessage2;RecordedLatStr: "+String(recordedLat, 6));
+    Serial.println("sendMessage2;RecordedLngStr: "+String(recordedLong,6));
     String coordinates = String(recordedLat, 6) + "," + String(recordedLong, 6);
+    Serial.println("sendMessage2;Coordinates: "+coordinates);
     sendMessageBase(recipient, coordinates);
   }
 }
 
 void sendMessage3(String recipient) {
   if (recordedLat != 0.0 && recordedLong != 0.0) {
-    sendMessageBase(recipient, "Note: Search this coordinates to your GMaps.");
+    sendMessageBase(recipient, "Search this coordinate in your GMaps.");
   }
 }
 
