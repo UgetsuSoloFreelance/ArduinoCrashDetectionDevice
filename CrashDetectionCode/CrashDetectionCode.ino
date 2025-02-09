@@ -168,8 +168,9 @@ void processAccelerometer() {
 
 void processCrashAlert() {
   // TRIGGER SEND MESSAGE.
-  recordedLat = latitude;
-  recordedLong = longitude;
+  recordedLat = 14.097182;
+  recordedLong = 122.958370;
+  Serial.print(recordedLat,6); Serial.print(","); Serial.println(recordedLong);
   currentIndex = 0; // Start from the first phone number
   isSending = true; // Enable message sending process
 }
