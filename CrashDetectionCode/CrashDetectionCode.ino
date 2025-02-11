@@ -59,7 +59,8 @@ const float SPIN_THRESHOLD = 0.75;  // Lateral acceleration for motor spinning o
 const unsigned long CRASH_TIME_LIMIT = 500;  // Time (ms) to confirm crash (1 second) (Default: 1000)
 
 // SMS
-String PHONE_NUMBERS[] = {"+639936647951", "+639944344112"};
+const char* PHONE_NUMBERS[] = {"+639936647951", "+639944344112"};
+char recipient[15];
 
 // FSR
 const int FORCE_THRESHOLD = 10; // minimum force threshold is 10.
@@ -280,16 +281,17 @@ void sendMessages() {
       Serial.print(messageIndex);
       Serial.print(" to: ");
       Serial.println(PHONE_NUMBERS[currentIndex]);
+      strcpy(recipient, PHONE_NUMBERS[currentIndex]);
 
       // Toggle messageIndex between 1 and 2
       if (messageIndex == 1) {
-        sendMessage1(PHONE_NUMBERS[currentIndex]);
+        sendMessage1();
         messageIndex = 2; // Switch to message 2 next
       } else if (messageIndex == 2) {
-        sendMessage2(PHONE_NUMBERS[currentIndex]);
+        sendMessage2();
         messageIndex = 3; // Reset to message 1 for the next number
       } else {
-        sendMessage3(PHONE_NUMBERS[currentIndex]);
+        sendMessage3();
         messageIndex = 1; // Reset to message 1 for the next number
         currentIndex++;   // Move to the next number
       }
@@ -302,7 +304,7 @@ void sendMessages() {
   }
 }
 
-void sendMessage1(String recipient) {
+void sendMessage1() {
   if (recordedLat == 0.0 || recordedLng == 0.0) {
     SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
     delay(2000); // Increased delay to ensure module is ready
@@ -322,7 +324,6 @@ void sendMessage1(String recipient) {
     delay(5000); // Longer delay to ensure message is sent
     while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
-    Serial.println("Message 3 sent: "+recipient+"; EMERGENCY: Motor crash detected. But cannot retrieve location.");
   } else {
     SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
     delay(2000); // Increased delay to ensure module is ready
@@ -341,12 +342,10 @@ void sendMessage1(String recipient) {
     SIM900A.write(26); // CTRL+Z to send message
     delay(5000); // Longer delay to ensure message is sent
     while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
-
-    Serial.println("Message 3 sent: "+recipient+"; EMERGENCY: Motor crash detected. Coordinates:");
   }
 }
 
-void sendMessage2(String recipient) {
+void sendMessage2() {
   if (recordedLat != 0.0 && recordedLng != 0.0) {
     
     SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
@@ -367,11 +366,10 @@ void sendMessage2(String recipient) {
     delay(5000); // Longer delay to ensure message is sent
     while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
-    Serial.println("Message 2 sent:" + recipient + "; " + valueString);
   }
 }
 
-void sendMessage3(String recipient) {
+void sendMessage3() {
   if (recordedLat != 0.0 && recordedLng != 0.0) {
     SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
     delay(2000); // Increased delay to ensure module is ready
@@ -391,6 +389,5 @@ void sendMessage3(String recipient) {
     delay(5000); // Longer delay to ensure message is sent
     while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
-    Serial.println("Message 3 sent: "+recipient+"; Search this coordinate in your GMaps.");
   }
 }
