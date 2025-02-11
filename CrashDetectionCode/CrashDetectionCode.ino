@@ -180,10 +180,11 @@ void processAccelerometer() {
 
 void processCrashAlert() {
   // TRIGGER SEND MESSAGE.
-  recordedLat = 14.097182;
-  recordedLng = 122.958370;
+  recordedLat = latitude;
+  recordedLng = longitude;
   dtostrf(recordedLat, 4, 6, latBuff);
   dtostrf(recordedLng, 4, 6, lngBuff);
+  Serial.print(recordedLat);Serial.print(",");Serial.println(recordedLng); // O ang value here
   valueString += latBuff;
   valueString += ",";
   valueString += lngBuff;
