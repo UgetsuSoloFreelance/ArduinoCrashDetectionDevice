@@ -177,7 +177,6 @@ void processCrashAlert() {
   // TRIGGER SEND MESSAGE.
   recordedLat = 14.097182;
   recordedLong = 122.958370;
-  Serial.print(recordedLat,6); Serial.print(","); Serial.println(recordedLong);
   currentIndex = 0; // Start from the first phone number
   isSending = true; // Enable message sending process
 }
@@ -350,7 +349,7 @@ void sendMessage2(String recipient) {
     delay(2000); // Increased delay to ensure command is processed
     while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
-    SIM900A.println(String(recordedLat, 6) + "," + String(recordedLong, 6)); // Send message content
+    SIM900A.println(String(recordedLat) + "," + String(recordedLong)); // Send message content
     delay(2000); // Increased delay for message processing
     while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
@@ -358,7 +357,7 @@ void sendMessage2(String recipient) {
     delay(5000); // Longer delay to ensure message is sent
     while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
-    Serial.println("Message 2 sent:" + recipient + "; " + String(recordedLat, 6) + "," + String(recordedLong, 6));
+    Serial.println("Message 2 sent:" + recipient + "; " + String(recordedLat) + "," + String(recordedLong));
   }
 }
 
