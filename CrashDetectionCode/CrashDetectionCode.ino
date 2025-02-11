@@ -295,49 +295,93 @@ void sendMessages() {
 
 void sendMessage1(String recipient) {
   if (recordedLat == 0.0 || recordedLong == 0.0) {
-    sendMessageBase(recipient, "EMERGENCY: Motor crash detected. But cannot retrieve location.");
+    SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
+    delay(2000); // Increased delay to ensure module is ready
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    SIM900A.print("AT+CMGS=\"");
+    SIM900A.print(recipient);
+    SIM900A.println("\"");
+    delay(2000); // Increased delay to ensure command is processed
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    SIM900A.println("EMERGENCY: Motor crash detected. But cannot retrieve location."); // Send message content
+    delay(2000); // Increased delay for message processing
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    SIM900A.write(26); // CTRL+Z to send message
+    delay(5000); // Longer delay to ensure message is sent
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    Serial.println("Message 3 sent: "+recipient+"; EMERGENCY: Motor crash detected. But cannot retrieve location.");
   } else {
-    sendMessageBase(recipient, "EMERGENCY: Motor crash detected. Coordinates:");
+    SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
+    delay(2000); // Increased delay to ensure module is ready
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    SIM900A.print("AT+CMGS=\"");
+    SIM900A.print(recipient);
+    SIM900A.println("\"");
+    delay(2000); // Increased delay to ensure command is processed
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    SIM900A.println("EMERGENCY: Motor crash detected. Coordinates:"); // Send message content
+    delay(2000); // Increased delay for message processing
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    SIM900A.write(26); // CTRL+Z to send message
+    delay(5000); // Longer delay to ensure message is sent
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    Serial.println("Message 3 sent: "+recipient+"; EMERGENCY: Motor crash detected. Coordinates:");
   }
 }
 
 void sendMessage2(String recipient) {
   if (recordedLat != 0.0 && recordedLong != 0.0) {
-    Serial.print("sendMessage2;RecordedLat: ");Serial.println(recordedLat);
-    Serial.print("sendMessage2;RecordedLng: ");Serial.println(recordedLong);
-    Serial.println("sendMessage2;RecordedLatStr: "+String(recordedLat, 6));
-    Serial.println("sendMessage2;RecordedLngStr: "+String(recordedLong,6));
-    String coordinates = String(recordedLat, 6) + "," + String(recordedLong, 6);
-    Serial.println("sendMessage2;Coordinates: "+coordinates);
-    sendMessageBase(recipient, coordinates);
+    
+    SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
+    delay(2000); // Increased delay to ensure module is ready
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    SIM900A.print("AT+CMGS=\"");
+    SIM900A.print(recipient);
+    SIM900A.println("\"");
+    delay(2000); // Increased delay to ensure command is processed
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    SIM900A.println(String(recordedLat, 6) + "," + String(recordedLong, 6)); // Send message content
+    delay(2000); // Increased delay for message processing
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    SIM900A.write(26); // CTRL+Z to send message
+    delay(5000); // Longer delay to ensure message is sent
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    Serial.println("Message 2 sent:" + recipient + "; " + String(recordedLat, 6) + "," + String(recordedLong, 6));
   }
 }
 
 void sendMessage3(String recipient) {
   if (recordedLat != 0.0 && recordedLong != 0.0) {
-    sendMessageBase(recipient, "Search this coordinate in your GMaps.");
+    SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
+    delay(2000); // Increased delay to ensure module is ready
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    SIM900A.print("AT+CMGS=\"");
+    SIM900A.print(recipient);
+    SIM900A.println("\"");
+    delay(2000); // Increased delay to ensure command is processed
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    SIM900A.println("Search this coordinate in your GMaps."); // Send message content
+    delay(2000); // Increased delay for message processing
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    SIM900A.write(26); // CTRL+Z to send message
+    delay(5000); // Longer delay to ensure message is sent
+    while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
+
+    Serial.println("Message 3 sent: "+recipient+"; Search this coordinate in your GMaps.");
   }
-}
-
-void sendMessageBase(String recipient, String message) {
-  SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
-  delay(2000); // Increased delay to ensure module is ready
-  while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
-
-  SIM900A.print("AT+CMGS=\"");
-  SIM900A.print(recipient);
-  SIM900A.println("\"");
-  delay(2000); // Increased delay to ensure command is processed
-  while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
-
-  SIM900A.println(message); // Send message content
-  SIM900A.println(); // Extra newline for safety
-  delay(2000); // Increased delay for message processing
-  while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
-
-  SIM900A.write(26); // CTRL+Z to send message
-  delay(5000); // Longer delay to ensure message is sent
-  while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
-
-  Serial.println("Message sent!");
 }
