@@ -127,11 +127,11 @@ void processGPS() {
     if (gps.fix) {
 
      // Convert latitude from DMM to DD format
-    float latitude = (int)(gps.latitude / 100) + (gps.latitude - ((int)(gps.latitude / 100) * 100)) / 60.0;
+    latitude = (int)(gps.latitude / 100) + (gps.latitude - ((int)(gps.latitude / 100) * 100)) / 60.0;
     if (gps.lat == 'S') latitude = -latitude; // Convert to negative for Southern Hemisphere
 
     // Convert longitude from DMM to DD format
-    float longitude = (int)(gps.longitude / 100) + (gps.longitude - ((int)(gps.longitude / 100) * 100)) / 60.0;
+    longitude = (int)(gps.longitude / 100) + (gps.longitude - ((int)(gps.longitude / 100) * 100)) / 60.0;
     if (gps.lon == 'W') longitude = -longitude; // Convert to negative for Western Hemisphere
 
     //Debug
