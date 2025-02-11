@@ -33,7 +33,8 @@ uint32_t timer = millis();
 #define PMTK_SET_NMEA_UPDATE_1HZ  "$PMTK220,1000*1F"
 #define PMTK_SET_NMEA_OUTPUT_RMCGGA "$PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28"
 float latitude = 0.0, longitude = 0.0; // Variables to store coordinates
-String recordedLat = "", recordedLng = ""; // Variables to store recorded coordinates
+float recordedLat = 0.0, recordedLng = 0.0; // Variables to store recorded coordinates
+char coordinates[30]; // variable to store coordinate
 
 // FSR VARIABLES
 unsigned int fsrValue = 0;
@@ -175,9 +176,10 @@ void processAccelerometer() {
 
 void processCrashAlert() {
   // TRIGGER SEND MESSAGE.
-  recordedLat = String(14.097182, 6);
-  recordedLng = String(122.958370, 6);
-  Serial.print(recordedLat); Serial.print(","); Serial.println(recordedLng);
+  snprintf(coordinates, sizeof(coordinates), "%.6f,%.6f", 14.097182, 122.958370);
+  recordedLat = 14.097182;
+  recordedLng = 122.958370;
+  Serial.print(coordinates);
   currentIndex = 0; // Start from the first phone number
   isSending = true; // Enable message sending process
 }
@@ -290,12 +292,14 @@ void sendMessages() {
   } else {
     isSending = false; // Stop when all numbers are sent to
     fsrValue = 0; // reset fsr value
-    String recordedLat = "", recordedLng = ""; // reset recordedLat and recordedLng value
+    recordedLat = 0.0;
+    recordedLng = 0.0; // reset recordedLat and recordedLng value
+    coordinates[0] = '\0'; // resets coordinates
   }
 }
 
 void sendMessage1(String recipient) {
-  if (recordedLat == "" || recordedLng == "") {
+  if (recordedLat == 0.0 || recordedLng == 0.0) {
     SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
     delay(2000); // Increased delay to ensure module is ready
     while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
@@ -339,7 +343,7 @@ void sendMessage1(String recipient) {
 }
 
 void sendMessage2(String recipient) {
-  if (recordedLat != "" && recordedLng != "") {
+  if (recordedLat != 0.0 && recordedLng != 0.0) {
     
     SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
     delay(2000); // Increased delay to ensure module is ready
@@ -351,7 +355,7 @@ void sendMessage2(String recipient) {
     delay(2000); // Increased delay to ensure command is processed
     while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
-    SIM900A.println(recordedLat + "," + recordedLng); // Send message content
+    SIM900A.println(coordinates); // Send message content
     delay(2000); // Increased delay for message processing
     while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
@@ -359,12 +363,12 @@ void sendMessage2(String recipient) {
     delay(5000); // Longer delay to ensure message is sent
     while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
 
-    Serial.println("Message 2 sent:" + recipient + "; " + recordedLat + "," + recordedLng);
+    Serial.println("Message 2 sent:" + recipient + "; " + coordinates);
   }
 }
 
 void sendMessage3(String recipient) {
-  if (recordedLat != "" && recordedLng != "") {
+  if (recordedLat != 0.0 && recordedLng != 0.0) {
     SIM900A.println("AT+CMGF=1"); // Set GSM module to text mode
     delay(2000); // Increased delay to ensure module is ready
     while (SIM900A.available()) { Serial.write(SIM900A.read()); } // Debug response
